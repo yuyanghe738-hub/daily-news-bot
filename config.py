@@ -4,110 +4,210 @@
 import os
 
 # ========== 邮件配置（二选一） ==========
-# 方式一：SendGrid API（推荐）
 SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
-
-# 方式二：SMTP（Outlook / Gmail 等）
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.qq.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
-SMTP_USER = os.environ.get("SMTP_USER", "")      # 邮箱地址
-SMTP_PASS = os.environ.get("SMTP_PASS", "")       # 邮箱密码或应用专用密码
-
-# 收件人
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASS = os.environ.get("SMTP_PASS", "")
 TO_EMAIL = os.environ.get("TO_EMAIL", "yuyanghe738@gmail.com")
 FROM_EMAIL = os.environ.get("FROM_EMAIL", "")
 
 # ========== 翻译配置 ==========
-# 是否将英文新闻摘要翻译为中文
 TRANSLATE_TO_CN = os.environ.get("TRANSLATE_TO_CN", "true").lower() == "true"
 
 # ========== 日期范围 ==========
-# 默认抓取昨天+今天，也可以通过环境变量覆盖
 DAYS_BACK = int(os.environ.get("DAYS_BACK", "2"))
 
 # ========== RSS 新闻源 ==========
+# 精挑细选的可靠源站，按主题分组
 RSS_SOURCES = {
-    # 综合新闻
-    "bbc_world": "https://feeds.bbci.co.uk/news/world/rss.xml",
-    "bbc_tech": "https://feeds.bbci.co.uk/news/technology/rss.xml",
-    "bbc_science": "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
-    "guardian_world": "https://www.theguardian.com/world/rss",
-    "guardian_tech": "https://www.theguardian.com/technology/rss",
-    "npr_world": "https://feeds.npr.org/1004/rss.xml",
-    "ap_world": "https://rsshub.app/apnews/topics/apf-worldnews",
-    "cnn_top": "https://rsshub.app/cnn/top",
+    # ---------- 综合新闻（覆盖热点 + 国际局势） ----------
+    "bbc_world":        "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "guardian_world":   "https://www.theguardian.com/world/rss",
 
-    # 科技
-    "techcrunch": "https://techcrunch.com/feed/",
-    "arstechnica": "https://feeds.arstechnica.com/arstechnica/index",
-    "hacker_news": "https://hnrss.org/frontpage",
-    "wired": "https://www.wired.com/feed/rss",
-    "theverge": "https://www.theverge.com/rss/index.xml",
+    # ---------- AI / 科技 ----------
+    "bbc_tech":         "https://feeds.bbci.co.uk/news/technology/rss.xml",
+    "guardian_tech":    "https://www.theguardian.com/technology/rss",
+    "techcrunch":       "https://techcrunch.com/feed/",          # AI/Crypto/Startup
+    "arstechnica":      "https://feeds.arstechnica.com/arstechnica/index",
+    "nvidia_blog":      "https://blogs.nvidia.com/feed/",
+    "google_ai":        "https://blog.google/technology/ai/rss/",
+    "openai_blog":      "https://openai.com/news/rss.xml",
+    "mit_tech_review":  "https://www.technologyreview.com/feed/",
+    "ieee_spectrum":    "https://spectrum.ieee.org/feed/rss",   # 硬件/芯片/Robotics
 
-    # AI 厂商博客
-    "nvidia_blog": "https://blogs.nvidia.com/feed/",
-    "google_ai": "https://blog.google/technology/ai/rss/",
-    "openai_blog": "https://openai.com/news/rss.xml",
-    "deepmind_blog": "https://blog.deepmind.com/feed.xml",
-
-    # 科研
-    "phys_org": "https://phys.org/rss-feed/",
-    "nature_comms": "https://www.nature.com/ncomms.rss",
-    "nature_physics": "https://www.nature.com/nphys.rss",
-    "nature_mat": "https://www.nature.com/nmat.rss",
-    "science_adv": "https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=sciadv",
-    "science_daily": "https://www.sciencedaily.com/rss/all.xml",
-    "mit_tech_review": "https://www.technologyreview.com/feed/",
-    "ieee_spectrum": "https://spectrum.ieee.org/feed/rss",
+    # ---------- 科研成果（物理 / 材料 / 前沿科学） ----------
+    "bbc_science":      "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+    "phys_org":         "https://phys.org/rss-feed/",
+    "nature_comms":     "https://www.nature.com/ncomms.rss",
+    "nature_physics":   "https://www.nature.com/nphys.rss",
+    "nature_mat":       "https://www.nature.com/nmat.rss",
+    "science_daily":    "https://www.sciencedaily.com/rss/all.xml",
 }
 
-# ========== 分类关键词 ==========
+# ========== 源站 → 默认分类 ==========
+# 来自这些源的新闻优先分配到此分类（除非标题明显属于其他分类）
+SOURCE_DEFAULT_CATEGORY = {
+    "bbc_world":        "hot",
+    "guardian_world":   "hot",
+    "bbc_tech":         "ai_tech",
+    "guardian_tech":    "ai_tech",
+    "techcrunch":       "ai_tech",
+    "arstechnica":      "ai_tech",
+    "nvidia_blog":      "ai_tech",
+    "google_ai":        "ai_tech",
+    "openai_blog":      "ai_tech",
+    "mit_tech_review":  "ai_tech",
+    "ieee_spectrum":    "ai_tech",
+    "bbc_science":      "science",
+    "phys_org":         "science",
+    "nature_comms":     "science",
+    "nature_physics":   "science",
+    "nature_mat":       "science",
+    "science_daily":    "science",
+}
+
+# ========== 分类关键词体系 ==========
+# 每条规则 = include(必须匹配) + exclude(匹配则排除)
+# 优先级: hot > international > ai_tech > science
+# 如果一篇文章匹配多个分类，只保留优先级最高的一个
+
 CATEGORIES = {
     "hot": {
-        "keywords": ["伊朗", "Israel", "Iran", "Gaza", "Hamas", "中东", "制裁",
-                     "Trump", "总统", "大选", "election", "爆炸", "attack",
-                     "冲突", "乌克兰", "Ukraine", "Russia", "俄罗斯", "战争",
-                     "台湾", "China", "中国", "南海", "South China", "朝鲜",
-                     "核武器", "nuclear", "climate", "气候"],
         "title": "🔥 热点新闻",
-        "max_articles": 15,
+        "max_articles": 10,
+        "priority": 1,
+        "include": [
+            # 战争冲突
+            "war", "missile", "strike", "ceasefire", "cease-fire",
+            "military", "attack", "drone", "sanction", "blockade",
+            "Israel", "Iran", "Gaza", "Hamas", "Hezbollah", "Ukraine",
+            "Russia", "nuclear weapon", "troop", "army",
+            # 重大灾难
+            "explosion", "earthquake", "mass shooting", "terrorist",
+            # 重大政治
+            "election", "president", "Trump says", "White House",
+            "vote of no confidence", "government collapse",
+            "assassination", "coup",
+            # 中文
+            "战争", "袭击", "导弹", "爆炸", "冲突", "总统", "大选",
+            "停火", "制裁", "政变", "暗杀",
+        ],
+        "exclude": [
+            # 排除非热点用词
+            "review", "opinion", "how to", "guide", "best",
+            "game", "movie", "album", "book", "TV show",
+            "stock", "IPO", "funding", "investor", "startup",
+            "sport", "football", "basketball", "tennis", "F1",
+            "AI model", "machine learning", "chip design",
+        ],
     },
     "international": {
-        "keywords": ["外交", "联合国", "UN", "欧盟", "EU", "NATO", "北约",
-                     "东盟", "ASEAN", "G7", "G20", "IMF", "World Bank",
-                     "贸易", "tariff", "关税", "制裁", "sanction",
-                     "难民", "refugee", "移民", "migrant",
-                     "人权", "human rights", "democracy", "民主"],
         "title": "🌍 国际局势",
-        "max_articles": 12,
+        "max_articles": 8,
+        "priority": 2,
+        "include": [
+            # 外交 / 国际组织
+            "United Nations", "UN ", "NATO", "European Union", "EU ",
+            "G7", "G20", "WHO", "IMF", "World Bank", "WTO",
+            "AUKUS", "IPEF", "ASEAN",
+            # 外交动作
+            "sanctions on", "diplomat", "ambassador", "embassy",
+            "secretary of state", "foreign minister", "summit",
+            "trade war", "tariff", "trade deal", "export control",
+            # 地缘政治
+            "South China Sea", "Taiwan strait", "Arctic",
+            "refugee", "migrant", "asylum",
+            # 法律 / 人权
+            "human rights", "war crime", "ICC", "ICJ",
+            # 中文
+            "外交", "联合国", "欧盟", "北约", "贸易战", "关税",
+            "难民", "人权", "制裁", "峰会",
+        ],
+        "exclude": [
+            "sport", "movie", "game", "review",
+            "AI model", "GPT", "quantum", "robot",
+            "stellar", "galaxy", "planet", "space",
+            "gene", "DNA", "protein", "cancer",
+        ],
     },
     "ai_tech": {
-        "keywords": ["AI", "人工智能", "machine learning", "深度学习",
-                     "GPT", "Claude", "Gemini", "LLM", "大模型",
-                     "OpenAI", "Anthropic", "Google", "DeepMind",
-                     "NVIDIA", "芯片", "quantum computing", "量子计算",
-                     "robot", "机器人", "autonomous", "自动驾驶",
-                     "neural", "神经网络", "transformer",
-                     "agent", "agentic", "robotics"],
-        "title": "🤖 科技前沿（AI）",
-        "max_articles": 12,
+        "title": "🤖 AI / 科技前沿",
+        "max_articles": 10,
+        "priority": 3,
+        "include": [
+            # AI 大模型
+            "GPT-4", "GPT-5", "Claude", "Gemini", "LLM", "large language model",
+            "OpenAI", "Anthropic", "DeepMind", "xAI",
+            "foundation model", "frontier model", "AI model",
+            "AI agent", "agentic", "autonomous AI",
+            # AI 应用
+            "machine learning", "deep learning", "neural network",
+            "transformer", "diffusion model", "reinforcement learning",
+            "computer vision", "natural language processing",
+            "AI chip", "GPU", "TPU", "AI accelerator",
+            # 芯片 / 半导体
+            "semiconductor", "chip design", "processor",
+            "NVIDIA", "TSMC", "Intel", "AMD",
+            # 量子计算
+            "quantum computer", "quantum processor", "qubit",
+            "quantum supremacy", "quantum error correction",
+            # 机器人
+            "humanoid robot", "robotaxi", "autonomous driving",
+            # 中文
+            "人工智能", "大模型", "AI芯片", "量子计算", "量子比特",
+            "自动驾驶", "机器人", "芯片", "半导体",
+        ],
+        "exclude": [
+            "sport", "movie", "game review", "album",
+            "cooking", "recipe", "fashion",
+            "stock price", "IPO", "funding round", "venture capital",
+            "bacteria", "virus", "protein", "DNA", "gene therapy",
+            "planet", "asteroid", "black hole", "galaxy",
+        ],
     },
     "science": {
-        "keywords": ["物理", "physics", "quantum", "量子", "超导",
-                     "superconduct", "材料", "material", "纳米",
-                     "nano", "graphene", "石墨烯", "电池", "battery",
-                     "光伏", "solar", "fusion", "聚变", "核聚变",
-                     "catalyst", "催化", "magnon", "磁子",
-                     "Nature", "Science", "光子", "photon",
-                     "半导体", "semiconductor", "拓扑"],
-        "title": "🔬 科研成果",
-        "max_articles": 10,
+        "title": "🔬 科研成果（物理 & 材料）",
+        "max_articles": 8,
+        "priority": 4,
+        "include": [
+            # 物理
+            "quantum physics", "quantum state", "quantum material",
+            "superconduct", "topological", "magnon", "phonon",
+            "photon", "particle physics", "CERN", "LHC",
+            "nuclear fusion", "tokamak", "plasma",
+            "graphene", "moiré", "2D material",
+            "condensed matter", "spintronics",
+            # 材料科学
+            "material science", "new material", "nanomaterial",
+            "nanoparticle", "nanowire", "perovskite",
+            "catalyst", "battery technology", "solid-state battery",
+            "MOF", "metamaterial", "high-entropy alloy",
+            "ferroelectric", "multiferroic", "piezoelectric",
+            # 光学 / 光电子
+            "optoelectronic", "photovoltaic", "LED",
+            "laser physics", "metasurface",
+            # 中文
+            "超导", "量子物理", "核聚变", "纳米", "拓扑",
+            "材料科学", "催化剂", "电池", "钙钛矿",
+            "光子", "凝聚态",
+        ],
+        "exclude": [
+            "AI model", "GPT", "LLM", "machine learning",
+            "stock", "IPO", "funding", "startup",
+            "sport", "movie", "game", "album",
+            "election", "president", "vote",
+            "recipe", "fashion", "travel",
+            "cancer treatment", "drug", "vaccine", "clinical trial",
+            "gene", "DNA", "protein", "cell", "virus", "bacteria",
+        ],
     },
 }
 
-# 最大抓取条数（每个源）
-MAX_PER_SOURCE = 25
-# 请求超时（秒）
+# ========== 分类优先级顺序（priority 数字越小越优先） ==========
+CATEGORY_PRIORITY = sorted(CATEGORIES.keys(), key=lambda c: CATEGORIES[c]["priority"])
+
+# ========== 抓取参数 ==========
+MAX_PER_SOURCE = 20
 TIMEOUT = 20
-# User-Agent
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"

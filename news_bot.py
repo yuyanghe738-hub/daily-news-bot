@@ -75,16 +75,52 @@ def dedup(articles: list, key: str = "url") -> list:
     return result
 
 
-def classify_article(title: str, summary: str) -> list[str]:
-    """根据关键词对文章分类，返回分类列表"""
+def classify_article(title: str, summary: str, source_name: str = "") -> str:
+    """
+    精确分类：一篇文章只归入一个最合适的分类。
+
+    规则：
+    1. 优先检查源站默认分类
+    2. 检查 include 关键词（必须匹配至少一个）
+    3. 检查 exclude 关键词（匹配则跳过该分类）
+    4. 如果匹配多个分类，按优先级取最高的
+    5. 如果不匹配任何分类，返回源站默认分类 或 "uncategorized"
+    """
     text = f"{title} {summary}".lower()
-    matched = []
-    for cat_name, cat_cfg in config.CATEGORIES.items():
-        for kw in cat_cfg["keywords"]:
-            if kw.lower() in text:
-                matched.append(cat_name)
+    source_default = config.SOURCE_DEFAULT_CATEGORY.get(source_name, "")
+
+    # 记录所有匹配的分类
+    matched_priority = 999  # 越小越优先
+    best_cat = ""
+
+    for cat_name in config.CATEGORY_PRIORITY:
+        cat_cfg = config.CATEGORIES[cat_name]
+
+        # 先检查 exclude 关键词 —— 匹配则跳过此分类
+        has_exclude = False
+        for ekw in cat_cfg.get("exclude", []):
+            if ekw.lower() in text:
+                has_exclude = True
                 break
-    return matched
+        if has_exclude:
+            continue
+
+        # 再检查 include 关键词
+        has_include = False
+        for ikw in cat_cfg["include"]:
+            if ikw.lower() in text:
+                has_include = True
+                break
+
+        if has_include and cat_cfg["priority"] < matched_priority:
+            matched_priority = cat_cfg["priority"]
+            best_cat = cat_name
+
+    # 如果没匹配任何分类，用源站默认分类
+    if not best_cat and source_default:
+        return source_default
+
+    return best_cat if best_cat else "uncategorized"
 
 
 def is_english(text: str) -> bool:
@@ -209,10 +245,14 @@ async def fetch_all_news() -> list[dict]:
     # 全局去重
     all_articles = dedup(all_articles, "url")
 
-    # 按分类
+    # 精确分类（每篇文章只归入一个分类）
     for article in all_articles:
-        cats = classify_article(article["title"], article["summary"])
-        article["categories"] = cats if cats else ["uncategorized"]
+        cat = classify_article(
+            article["title"],
+            article.get("summary", ""),
+            article.get("source", ""),
+        )
+        article["category"] = cat
 
     return all_articles
 
@@ -227,13 +267,13 @@ def build_html_email(articles: list[dict], date_range: str, trans_map: dict[int,
     # 统计
     cat_counts = {}
     for a in articles:
-        for c in a.get("categories", ["uncategorized"]):
-            cat_counts[c] = cat_counts.get(c, 0) + 1
+        c = a.get("category", "uncategorized")
+        cat_counts[c] = cat_counts.get(c, 0) + 1
 
     sections_html = ""
     for cat_name, cat_cfg in config.CATEGORIES.items():
         cat_articles = [
-            a for a in articles if cat_name in a.get("categories", [])
+            a for a in articles if a.get("category") == cat_name
         ][: cat_cfg["max_articles"]]
 
         if not cat_articles:
@@ -321,7 +361,7 @@ def build_text_email(articles: list[dict], trans_map: dict[int, dict] = None) ->
     trans_map = trans_map or {}
     lines = ["📰 每日国际新闻摘要", "=" * 40, f"日期范围：{get_date_range()}", ""]
     for cat_name, cat_cfg in config.CATEGORIES.items():
-        cat_articles = [a for a in articles if cat_name in a.get("categories", [])][: cat_cfg["max_articles"]]
+        cat_articles = [a for a in articles if a.get("category") == cat_name][: cat_cfg["max_articles"]]
         if not cat_articles:
             continue
         lines.append(f"\n{cat_cfg['title']}")
@@ -449,10 +489,10 @@ async def main():
     # 2. 分类统计
     print("\n📊 分类统计：")
     for cat_name, cat_cfg in config.CATEGORIES.items():
-        count = sum(1 for a in articles if cat_name in a.get("categories", []))
+        count = sum(1 for a in articles if a.get("category") == cat_name)
         print(f"  {cat_cfg['title']}: {count} 条")
 
-    uncat = sum(1 for a in articles if "uncategorized" in a.get("categories", []))
+    uncat = sum(1 for a in articles if a.get("category") == "uncategorized")
     print(f"  未分类: {uncat} 条")
 
     # 3. 翻译英文标题和摘要为中文
