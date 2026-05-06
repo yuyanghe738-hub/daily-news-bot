@@ -27,6 +27,13 @@ import feedparser
 
 import config
 
+# 可选翻译库，不存在时跳过翻译
+try:
+    from deep_translator import GoogleTranslator
+    HAS_TRANSLATOR = True
+except ImportError:
+    HAS_TRANSLATOR = False
+
 # 北京时区
 BJT = timezone(timedelta(hours=8))
 
@@ -78,6 +85,56 @@ def classify_article(title: str, summary: str) -> list[str]:
                 matched.append(cat_name)
                 break
     return matched
+
+
+def is_english(text: str) -> bool:
+    """判断文本是否主要为英文"""
+    if not text:
+        return False
+    # 统计英文字母占比
+    letters = sum(1 for c in text if c.isalpha())
+    eng = sum(1 for c in text if c.isascii() and c.isalpha())
+    return letters > 0 and (eng / letters) > 0.7
+
+
+def translate_batch(texts: list[str], max_retries: int = 2) -> dict[int, str]:
+    """批量翻译英文文本为中文，返回 {index: translated_text} 映射"""
+    if not config.TRANSLATE_TO_CN or not HAS_TRANSLATOR:
+        return {}
+
+    # 只翻译英文内容
+    to_translate = {i: t for i, t in enumerate(texts) if t and is_english(t)}
+    if not to_translate:
+        return {}
+
+    translator = GoogleTranslator(source="en", target="zh-CN")
+    results = {}
+
+    # 分批翻译，每批10条避免限流
+    batch_size = 10
+    indices = list(to_translate.keys())
+
+    for batch_start in range(0, len(indices), batch_size):
+        batch_idx = indices[batch_start : batch_start + batch_size]
+        batch_texts = [to_translate[i] for i in batch_idx]
+
+        for attempt in range(max_retries):
+            try:
+                translated = translator.translate_batch(batch_texts)
+                for i, t in zip(batch_idx, translated):
+                    if t and t != to_translate[i]:
+                        results[i] = t
+                break
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    time.sleep(2)
+                else:
+                    print(f"  ⚠ 翻译失败 (第{batch_start//batch_size+1}批): {e}")
+
+        # 批次间等待，减缓请求频率
+        time.sleep(1)
+
+    return results
 
 
 # ==================== RSS 新闻抓取 ====================
@@ -162,9 +219,10 @@ async def fetch_all_news() -> list[dict]:
 
 # ==================== 生成 HTML 邮件 ====================
 
-def build_html_email(articles: list[dict], date_range: str) -> str:
+def build_html_email(articles: list[dict], date_range: str, trans_map: dict[int, dict] = None) -> str:
     """生成格式化的 HTML 邮件正文"""
     today = bj_now().strftime("%Y年%m月%d日")
+    trans_map = trans_map or {}
 
     # 统计
     cat_counts = {}
@@ -183,9 +241,11 @@ def build_html_email(articles: list[dict], date_range: str) -> str:
 
         articles_html = ""
         for i, a in enumerate(cat_articles, 1):
-            title = html.escape(a["title"])
+            aid = id(a)
+            tmap = trans_map.get(aid, {})
+            title = html.escape(tmap.get("title", a["title"]))
             url = html.escape(a.get("url", ""))
-            summary = html.escape(a.get("summary", ""))
+            summary = html.escape(tmap.get("summary", a.get("summary", "")))
             source = html.escape(a.get("source", ""))
             articles_html += f"""
             <tr>
@@ -256,8 +316,9 @@ def build_html_email(articles: list[dict], date_range: str) -> str:
     return html_content
 
 
-def build_text_email(articles: list[dict]) -> str:
+def build_text_email(articles: list[dict], trans_map: dict[int, dict] = None) -> str:
     """生成纯文本备用邮件"""
+    trans_map = trans_map or {}
     lines = ["📰 每日国际新闻摘要", "=" * 40, f"日期范围：{get_date_range()}", ""]
     for cat_name, cat_cfg in config.CATEGORIES.items():
         cat_articles = [a for a in articles if cat_name in a.get("categories", [])][: cat_cfg["max_articles"]]
@@ -266,10 +327,14 @@ def build_text_email(articles: list[dict]) -> str:
         lines.append(f"\n{cat_cfg['title']}")
         lines.append("-" * 30)
         for a in cat_articles:
-            lines.append(f"\n• {a['title']}")
+            aid = id(a)
+            tmap = trans_map.get(aid, {})
+            title = tmap.get("title", a["title"])
+            lines.append(f"\n• {title}")
             lines.append(f"  {a.get('url', '')}")
-            if a.get("summary"):
-                lines.append(f"  {a['summary']}")
+            summary = tmap.get("summary", a.get("summary", ""))
+            if summary:
+                lines.append(f"  {summary}")
     lines.append("\n" + "=" * 40)
     lines.append("由 AI 新闻机器人自动生成")
     return "\n".join(lines)
@@ -390,13 +455,44 @@ async def main():
     uncat = sum(1 for a in articles if "uncategorized" in a.get("categories", []))
     print(f"  未分类: {uncat} 条")
 
-    # 3. 生成邮件
+    # 3. 翻译英文标题和摘要为中文
+    if config.TRANSLATE_TO_CN:
+        print("\n🌐 正在翻译为中文...")
+        # 收集所有需要翻译的文本
+        all_titles = []
+        all_summaries = []
+        for a in articles:
+            all_titles.append(a["title"])
+            all_summaries.append(a.get("summary", ""))
+
+        # 批量翻译
+        title_trans = translate_batch(all_titles)
+        summary_trans = translate_batch(all_summaries)
+
+        # 构建翻译映射
+        trans_map = {}
+        for i, a in enumerate(articles):
+            aid = id(a)
+            tmap = {}
+            if i in title_trans:
+                tmap["title"] = title_trans[i]
+            if i in summary_trans:
+                tmap["summary"] = summary_trans[i]
+            if tmap:
+                trans_map[aid] = tmap
+
+        translated_count = len(title_trans) + len(summary_trans)
+        print(f"  ✅ 翻译完成: {len(title_trans)} 个标题 + {len(summary_trans)} 条摘要")
+    else:
+        trans_map = {}
+
+    # 4. 生成邮件
     print("\n📝 正在生成邮件...")
     subject = f"📰 每日国际新闻摘要 - {date_range}"
-    html_body = build_html_email(articles, date_range)
-    text_body = build_text_email(articles)
+    html_body = build_html_email(articles, date_range, trans_map)
+    text_body = build_text_email(articles, trans_map)
 
-    # 4. 发送邮件
+    # 5. 发送邮件
     print("📧 正在发送邮件...")
     send_email(html_body, text_body, subject)
 
