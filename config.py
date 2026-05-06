@@ -8,7 +8,7 @@ import os
 SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
 
 # 方式二：SMTP（Outlook / Gmail 等）
-SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp-mail.outlook.com")
+SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.qq.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 SMTP_USER = os.environ.get("SMTP_USER", "")      # 邮箱地址
 SMTP_PASS = os.environ.get("SMTP_PASS", "")       # 邮箱密码或应用专用密码
