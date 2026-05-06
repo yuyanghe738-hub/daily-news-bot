@@ -17,6 +17,10 @@ SMTP_PASS = os.environ.get("SMTP_PASS", "")       # 邮箱密码或应用专用�
 TO_EMAIL = os.environ.get("TO_EMAIL", "yuyanghe738@gmail.com")
 FROM_EMAIL = os.environ.get("FROM_EMAIL", "")
 
+# ========== 翻译配置 ==========
+# 是否将英文新闻摘要翻译为中文
+TRANSLATE_TO_CN = os.environ.get("TRANSLATE_TO_CN", "true").lower() == "true"
+
 # ========== 日期范围 ==========
 # 默认抓取昨天+今天，也可以通过环境变量覆盖
 DAYS_BACK = int(os.environ.get("DAYS_BACK", "2"))
