@@ -37,11 +37,15 @@ RSS_SOURCES = {
     "ieee_spectrum":    "https://spectrum.ieee.org/feed/rss",   # 硬件/芯片/Robotics
 
     # ---------- 科研成果（物理 / 材料 / 前沿科学） ----------
-    "bbc_science":      "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
-    "phys_org":         "https://phys.org/rss-feed/",
-    "nature_comms":     "https://www.nature.com/ncomms.rss",
-    "nature_physics":   "https://www.nature.com/nphys.rss",
-    "nature_mat":       "https://www.nature.com/nmat.rss",
+    "phys_org":         "https://phys.org/rss-feed/",           # 物理科学新闻（每日）
+    "nature_comms":     "https://www.nature.com/ncomms.rss",    # Nature 大子刊（每日）
+    "nature_physics":   "https://www.nature.com/nphys.rss",     # Nature Physics（月刊）
+    "nature_mat":       "https://www.nature.com/nmat.rss",      # Nature Materials（月刊）
+    "nature_nano":      "https://www.nature.com/nnano.rss",     # Nature Nanotechnology（月刊）
+    "nature_photon":    "https://www.nature.com/nphoton.rss",   # Nature Photonics（月刊）
+    "science_mag":      "https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=science",  # Science（周刊）
+    "arxiv_matsci":     "https://rss.arxiv.org/rss/cond-mat.mtrl-sci",  # arXiv 材料科学（每日）
+    "arxiv_quantph":    "https://rss.arxiv.org/rss/quant-ph",           # arXiv 量子物理（每日）
     "science_daily":    "https://www.sciencedaily.com/rss/all.xml",
 }
 
@@ -59,11 +63,15 @@ SOURCE_DEFAULT_CATEGORY = {
     "openai_blog":      "ai_tech",
     "mit_tech_review":  "ai_tech",
     "ieee_spectrum":    "ai_tech",
-    "bbc_science":      "science",
     "phys_org":         "science",
     "nature_comms":     "science",
     "nature_physics":   "science",
     "nature_mat":       "science",
+    "nature_nano":      "science",
+    "nature_photon":    "science",
+    "science_mag":      "science",
+    "arxiv_matsci":     "science",
+    "arxiv_quantph":    "science",
     "science_daily":    "science",
 }
 
@@ -168,38 +176,51 @@ CATEGORIES = {
     },
     "science": {
         "title": "🔬 科研成果（物理 & 材料）",
-        "max_articles": 8,
+        "max_articles": 12,
         "priority": 4,
         "include": [
-            # 物理
+            # 量子物理 / 凝聚态
             "quantum physics", "quantum state", "quantum material",
-            "superconduct", "topological", "magnon", "phonon",
-            "photon", "particle physics", "CERN", "LHC",
-            "nuclear fusion", "tokamak", "plasma",
-            "graphene", "moiré", "2D material",
-            "condensed matter", "spintronics",
+            "quantum phase", "quantum critical", "quantum oscillation",
+            "topological insulator", "topological phase", "topological order",
+            "superconduct", "superconductor", "unconventional superconduct",
+            "magnon", "phonon", "exciton", "polariton",
+            "condensed matter", "strongly correlated",
+            "moiré", "twisted bilayer", "twisted graphene",
+            "Majorana", "non-Hermitian", "Floquet",
             # 材料科学
-            "material science", "new material", "nanomaterial",
-            "nanoparticle", "nanowire", "perovskite",
-            "catalyst", "battery technology", "solid-state battery",
-            "MOF", "metamaterial", "high-entropy alloy",
+            "2D material", "graphene", "transition metal dichalcogenide",
+            "nanomaterial", "nanoparticle", "nanowire", "nanoribbon",
+            "perovskite", "halide perovskite",
+            "high-entropy alloy", "metamaterial", "MOF",
             "ferroelectric", "multiferroic", "piezoelectric",
-            # 光学 / 光电子
-            "optoelectronic", "photovoltaic", "LED",
-            "laser physics", "metasurface",
+            "catalyst", "electrocatalyst", "photocatalyst",
+            "solid-state battery", "lithium battery", "sodium-ion",
+            "thermoelectric", "memristor",
+            # 光子学 / 光电子
+            "photon", "photonic", "optoelectronic",
+            "photovoltaic", "solar cell", "LED", "quantum dot",
+            "metasurface", "plasmon", "nanophotonics",
+            "laser", "nonlinear optics",
+            # 物理一般
+            "particle physics", "high-energy physics", "CERN", "LHC",
+            "nuclear fusion", "tokamak", "plasma physics",
+            "spintronics", "spin transport",
+            "neutrino", "dark matter", "gravitational wave",
             # 中文
-            "超导", "量子物理", "核聚变", "纳米", "拓扑",
-            "材料科学", "催化剂", "电池", "钙钛矿",
-            "光子", "凝聚态",
+            "超导", "量子", "拓扑", "纳米", "二维材料",
+            "石墨烯", "钙钛矿", "核聚变", "光子", "凝聚态",
+            "莫尔", "铁电", "催化", "自旋",
         ],
         "exclude": [
             "AI model", "GPT", "LLM", "machine learning",
             "stock", "IPO", "funding", "startup",
             "sport", "movie", "game", "album",
             "election", "president", "vote",
-            "recipe", "fashion", "travel",
             "cancer treatment", "drug", "vaccine", "clinical trial",
-            "gene", "DNA", "protein", "cell", "virus", "bacteria",
+            "COVID", "virus", "bacteria", "immune",
+            "recipe", "fashion", "travel",
+            "review", "opinion", "perspective",
         ],
     },
 }
@@ -208,6 +229,6 @@ CATEGORIES = {
 CATEGORY_PRIORITY = sorted(CATEGORIES.keys(), key=lambda c: CATEGORIES[c]["priority"])
 
 # ========== 抓取参数 ==========
-MAX_PER_SOURCE = 20
-TIMEOUT = 20
+MAX_PER_SOURCE = 15
+TIMEOUT = 25
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
