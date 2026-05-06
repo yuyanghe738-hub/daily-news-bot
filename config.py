@@ -7,11 +7,11 @@ import os
 # 方式一：SendGrid API（推荐）
 SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
 
-# 方式二：SMTP（如Gmail）
-SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+# 方式二：SMTP（Outlook / Gmail 等）
+SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp-mail.outlook.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
-SMTP_USER = os.environ.get("SMTP_USER", "")      # Gmail 邮箱地址
-SMTP_PASS = os.environ.get("SMTP_PASS", "")       # Gmail 应用专用密码
+SMTP_USER = os.environ.get("SMTP_USER", "")      # 邮箱地址
+SMTP_PASS = os.environ.get("SMTP_PASS", "")       # 邮箱密码或应用专用密码
 
 # 收件人
 TO_EMAIL = os.environ.get("TO_EMAIL", "yuyanghe738@gmail.com")
