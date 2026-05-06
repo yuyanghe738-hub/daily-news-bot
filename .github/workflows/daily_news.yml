@@ -1,0 +1,59 @@
+name: 每日新闻抓取与邮件发送
+
+on:
+  schedule:
+    # 每天北京时间 07:30 = UTC 23:30（前一天）
+    - cron: '30 23 * * *'
+  # 支持手动触发
+  workflow_dispatch:
+    inputs:
+      days_back:
+        description: '抓取几天前的新闻（默认2天）'
+        required: false
+        default: '2'
+
+jobs:
+  fetch-and-send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 安装依赖
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 抓取新闻并发送邮件
+        env:
+          # ====== 邮件配置（二选一）======
+          # 方式一：SendGrid（推荐）
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          # 方式二：SMTP（不设置 SendGrid 时会自动使用 SMTP）
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+
+          # ====== 其他配置 ======
+          TO_EMAIL: ${{ secrets.TO_EMAIL }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          DAYS_BACK: ${{ github.event.inputs.days_back || '2' }}
+
+        run: python news_bot.py
+
+      - name: 上传邮件 HTML 预览（调试用）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: email-preview
+          path: preview.html
+          retention-days: 3
